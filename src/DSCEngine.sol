@@ -6,16 +6,16 @@ import {OracleLib, AggregatorV3Interface} from "./lib/OracleLib.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-error DSCEngine__AmountMustBeMoreThanZero();
-error DSCEngine__InvalidAddress();
-error DSCEngine__TransferFailed();
-error DSCEngine__PriceFeedsAndColleteralLengthMustBeSame();
-error DSCEngine__HealthFactorIsBroken(uint256 _healthFactor);
-error DSCEngine__MintFailed();
-error DSCEngine__NoNeedForLiquidation();
-error DSCEngine__HealthFactorHaventImproved();
-
 contract DSCEngine is ReentrancyGuard {
+    error DSCEngine__AmountMustBeMoreThanZero();
+    error DSCEngine__InvalidAddress();
+    error DSCEngine__TransferFailed();
+    error DSCEngine__PriceFeedsAndColleteralLengthMustBeSame();
+    error DSCEngine__HealthFactorIsBroken(uint256 _healthFactor);
+    error DSCEngine__MintFailed();
+    error DSCEngine__NoNeedForLiquidation();
+    error DSCEngine__HealthFactorHaventImproved();
+
     DSC private immutable i_dscContract;
 
     uint256 private constant LIQUIDATION_THRESHOLD = 50;
@@ -90,7 +90,7 @@ contract DSCEngine is ReentrancyGuard {
         ValueMoreThanZero(_amount)
         nonReentrant
     {
-        s_depositedCollateral[msg.sender][_tokenAddress] = _amount;
+        s_depositedCollateral[msg.sender][_tokenAddress] = _amount; // 0.1 = 1e17
         emit collateralDeposited(msg.sender, _tokenAddress, _amount);
         bool success = IERC20(_tokenAddress).transferFrom(
             msg.sender,
@@ -105,7 +105,7 @@ contract DSCEngine is ReentrancyGuard {
     function depositCollateralAndMintDSC(
         address _tokenAddress,
         uint256 _amountCollateral,
-        uint256 _amountDscToMint
+        uint256 _amountDscToMint // 0.1 = 1e17
     ) public {
         depositCollateral(_tokenAddress, _amountCollateral);
         mintDSC(_amountDscToMint);
@@ -124,13 +124,13 @@ contract DSCEngine is ReentrancyGuard {
 
     function getUsdValueOfToken(
         address _tokenAddress,
-        uint256 _amount// quantity
+        uint256 _amount // quantity
     ) public view returns (uint256 tokenValueInUsd) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(
             s_priceFeeds[_tokenAddress] // $ 1000
         );
         (, int256 answer, , , ) = priceFeed.latestRoundData(); // 1000_00000000_0000000000
-        tokenValueInUsd = // valuePerQuantity * quantity 
+        tokenValueInUsd = // valuePerQuantity * quantity
             ((uint256(answer) * ADDITIONAL_FEED_PRECISION) * _amount) /
             PRECISION;
         // 1000_00000000_0000000000 * 50_00000000_0000000000
@@ -168,7 +168,7 @@ contract DSCEngine is ReentrancyGuard {
             return type(uint256).max;
         }
         uint256 collateralAdjustingForThreshold = (_totalCollateralValueInUsd *
-            LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+            LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION; 
         return (collateralAdjustingForThreshold * PRECISION) / _amountMinted;
     }
 
@@ -181,7 +181,7 @@ contract DSCEngine is ReentrancyGuard {
     function mintDSC(
         uint256 _amount
     ) public ValueMoreThanZero(_amount) nonReentrant {
-        s_mintedDSC[msg.sender] += _amount;
+        s_mintedDSC[msg.sender] += _amount; // 10000e18
         revertIfHealthFactorIsBroken(msg.sender);
         bool mintSuccess = i_dscContract.mint(msg.sender, _amount);
         if (!mintSuccess) revert DSCEngine__MintFailed();
@@ -292,10 +292,10 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     function getCollateralBalanceOfUser(
-        address _userr,
+        address _user,
         address _tokenAddress
     ) external view returns (uint256) {
-        return s_depositedCollateral[_userr][_tokenAddress];
+        return s_depositedCollateral[_user][_tokenAddress];
     }
 
     function getPrecision() external pure returns (uint256) {
@@ -335,7 +335,9 @@ contract DSCEngine is ReentrancyGuard {
     ) external view returns (address) {
         return s_priceFeeds[_token];
     }
-
+    function calculateHealthFactor (uint256 _totalCollateralValueInUsd,uint256 _amountMinted) external pure returns(uint256) {
+        return _calculateHealthFactor(_totalCollateralValueInUsd,_amountMinted);
+    }
     function getHealthFactor(address _user) external view returns (uint256) {
         return _healthFactor(_user);
     }
