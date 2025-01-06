@@ -1,3 +1,0 @@
-1.whatever value we deposit as a collateral converting into usd for example if i deposit 10 ether it will converted into $ 10000e18 if the current price of the eth is $ 1000 and the token have to mint will convert into count for example 100 ether = 100e18 token means 100 tokens
-2.price feed section converts the value into dollar just by considering before values of e18 for example if i say 5e18 it can be $5 
-3.
